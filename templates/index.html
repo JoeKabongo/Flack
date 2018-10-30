@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+  <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.11/handlebars.min.js"></script>
+  <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+  <script id="new-channels" type="text/x-handlebars-template">
+    <div>
+          <a href=""   class="channel-link">{% raw -%}{{channel}}{%- endraw %}</a>
+    </div>
+  </script>
+
+
+  <script id="messages" type="text/x-handlebars-template">
+    {% raw -%}
+      <div class="message" id={{id}} style="z-index:0;">
+            <b>{{username}} </b> <span style="color:gray;"> at {{time}} </span>
+            {{#if detele-button}}
+              <button class="btn btn-outline-secondary delete-message-button"  style="float:right;" type="submit" onclick="deleteMessage(this);"> delete</button>
+            {{/if}}
+            <br>
+            {{message}}
+          <hr>
+      </div>
+    {%- endraw %}
+
+  </script>
+
+  <script class="date" type="text/x-handlebars-template">
+    <div class="containerDate">
+      {% raw -%}
+         <h2>{{date}}</h2>
+         <div class="line"></div>
+      {%- endraw %}
+    </div>
+  </script>
+
+  <script id="users" type="text/x-handlebars-template">
+    <div>
+      <ul>
+
+         <li>
+        {% raw -%}
+            <a href="{{href}}" data>{{user}}</a>
+        {%- endraw %}
+        </li>
+      </ul>
+    </div>
+  </script>
+
+  <title>FLack | Home</title>
+</head>
+<body>
+  <div id="navigation-bar" class="">
+    <div class="vertical-menu">
+      <a href="" style="text-align:center" class="Home" >Flack</a>
+      <br>
+      <a href="" id="create-channel-link" class="addFunctions"> <b>Chat rooms +</b></a>
+      <div id="channels">
+        {% for channel in channels %}
+            <a href="" id={{channel}} class="channel-link">{{channel}}</a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div id="signup-div" class="main-div">
+    <p> Oh first time using this website on this browser? Enter a display name that you would like to use</p>
+    <form action="{{ url_for('signup') }}" method="post" id="signup-form">
+      <div class="input-group">
+        <input type="text" class="form-control" placeholder="Enter name" aria-label="Recipient's username" aria-describedby="basic-addon2" id="display-name" required>
+        <div class="input-group-append">
+          <button class="btn btn-outline-secondary" type="submit">Sign up</button>
+        </div>
+      </div>
+    </form>
+    <br>
+    <div class="alert alert-danger alert-dismissible fade show" role="alert" style="display:none " id="signup-alert">
+       This username has already been taken sorry, try again!
+      <button type="button" class="close" id="close-signup-alert">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
+  </div>
+
+
+    <div id="home-display" class="main-div">
+      <h2> Create chat room and chat with </h2>
+      <ul>
+        <li> Co-workers</li>
+        <li> classmates </li>
+        <li> students </li>
+        <li> Or to strangers...</li>
+        <li> Etc</li>
+      </ul>
+
+    </div>
+
+    <div id="create-channel-div" class="main-div" style="display:{{createChannel}}">
+      <div style="margin-top:50vh; text-align:center;" >
+        <p> Create a channel</p>
+        <form action="{{ url_for('create_channel') }}" id="create-channel-form" method="post">
+          <div class="input-group" style="width:400px; margin: 0 auto">
+            <input type="text" class="form-control" placeholder="Enter channel name" aria-label="Recipient's username" aria-describedby="basic-addon2" id= "channel-name" required maxlength="19">
+            <div class="input-group-append">
+              <button class="btn btn-outline-secondary" type="submit">Create Channel</button>
+            </div>
+          </div>
+          <p style="font-size:12px;"> Names must be lowercase, without space or period, shorter than 20 characters</p>
+        </form>
+      </div>
+      <br>
+
+      <div class="alert alert-danger alert-dismissible fade show" role="alert" style="display:none" id="create-channel-alert">
+         This name has already been taken!
+        <button type="button" class="close" id="close-create-channel-alert">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="alert alert-success" role="alert" style="display:none" id="create-channel-success">
+         Channel was succefully created
+        <button type="button" class="close" id="close-create-channel-success">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+   </div>
+   
+   <div id="channel-messages" class="main-div">
+      <div class="input-group"  id="#send-message" style="bottom:5px; position:fixed;; width:70vw; background-color:#b3cccc; z-index:2;" >
+           <input type="text" class="form-control" placeholder="Enter message" aria-label="Recipient's username" aria-describedby="basic-addon2" required id= "message" name="channel_name">
+           <div class="input-group-append">
+             <button class="btn btn-outline-secondary" type="submit" id="btn-send-message">send message</button>
+           </div>
+      </div>
+      <div id="messages-section">
+
+      </div>
+   </div>
+</body>
+</html>

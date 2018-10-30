@@ -1,0 +1,144 @@
+body
+{
+  background-color:  #b3cccc;
+}
+
+
+/* style the navbar with its link */
+.vertical-menu {
+  width: 200px;
+  height: 100vh;
+  background-color: #7aaae0 ;
+  position: fixed;
+  top:0;
+  left:0;
+  overflow-y: scroll;
+
+}
+.vertical-menu a {
+  color: #414141;
+  display: block;
+  padding: 12px;
+  text-decoration: none;
+}
+.vertical-menu a:hover {
+  color:black !important;
+}
+
+.vertical-menu .add-user{
+  color:black;
+}
+.vertical-menu .addFunctions:hover{
+  background-color: #ccc;
+}
+
+
+.vertical-menu a.active {
+  background-color: #4CAF50;
+  color: white;
+
+}
+
+.vertical-menu .Home
+{
+  font-size: 25px;
+  background-color: #ccc;
+}
+
+
+.btn{
+  color:#000000;
+}
+
+.btn:hover{
+  background-color: #7aaae0;
+  color:black;
+}
+
+.main-div
+{
+  margin-left:200px ;
+
+}
+#channel-messages, #personal-message-div
+{
+  padding: 20px;
+
+}
+
+#signup-div, #create-channel-div
+{
+  margin-top:50vh ;
+  text-align:center;
+}
+
+
+#signup-div .input-group
+{
+  width:300px;
+  margin: 0 auto
+}
+
+/* the send message input */
+#send-message
+{
+  bottom:5px !important;
+  position:absolute !important;
+  width: 70vw !important;
+}
+
+
+.message
+{
+  margin-top: 12px;
+}
+
+.containerDate {
+text-align: center;
+}
+
+.line {
+    height: 2px;
+    background: #79AEE7;
+}
+
+h2 {
+    position: relative;
+    top: 36px;
+    background: #b3cccc;
+    display: inline-block;
+    padding: 0 2px;
+}
+
+
+.current-channel{
+  background-color: #ccc;
+}
+
+
+/*When user delete a message */
+@keyframes delete {
+    0% {
+        opacity: 1;
+        height: 100%;
+        line-height: 100%;
+
+    }
+    75% {
+        opacity: 0;
+        height: 100%;
+        line-height: 100%;
+    }
+    100% {
+        opacity: 0;
+        height: 0px;
+        line-height: 0px;
+    }
+}
+
+.message {
+    animation-name: delete;
+    animation-duration: 2s;
+    animation-fill-mode: forwards;
+    animation-play-state: paused;
+}
