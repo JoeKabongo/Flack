@@ -40,6 +40,7 @@
          <h2>{{date}}</h2>
          <div class="line"></div>
       {%- endraw %}
+      <br>
     </div>
   </script>
 
@@ -54,6 +55,24 @@
         </li>
       </ul>
     </div>
+  </script>
+
+  <style>
+     #channelFeatures a
+     {
+       margin: 10px;
+       color: #000000;
+     }
+  </style>
+
+  <script type="text/x-handlebars-template">
+
+    <div id="channelFeatures" style="position:fixed; top:0px; width:100%; background:#7aaae0; padding:10px; z-index:1;">
+          <a href=""> Users + </a>
+          <a href=""> User - </a>
+          <a href=""> Members</a>
+    </div>
+
   </script>
 
   <title>FLack | Home</title>
@@ -133,7 +152,7 @@
         </button>
       </div>
    </div>
-   
+
    <div id="channel-messages" class="main-div">
       <div class="input-group"  id="#send-message" style="bottom:5px; position:fixed;; width:70vw; background-color:#b3cccc; z-index:2;" >
            <input type="text" class="form-control" placeholder="Enter message" aria-label="Recipient's username" aria-describedby="basic-addon2" required id= "message" name="channel_name">
@@ -141,9 +160,22 @@
              <button class="btn btn-outline-secondary" type="submit" id="btn-send-message">send message</button>
            </div>
       </div>
+
+      <div>
+        <nav>
+            <a href=""> Add user </a>
+            <a href="">  remove user</a>
+            <a href=""> Members</a>
+            <a href=""> Leave group </a>
+        </nav>
+      </div>
+
+
       <div id="messages-section">
 
       </div>
    </div>
+
+
 </body>
 </html>
