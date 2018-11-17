@@ -12,16 +12,16 @@
   <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <script src="{{ url_for('static', filename='script.js') }}"></script>
-  <script id="new-channels" type="text/x-handlebars-template">
-    <div>
-          <a href=""   class="channel-link">{% raw -%}{{channel}}{%- endraw %}</a>
-    </div>
+  <script id="new-channel" type="text/x-handlebars-template">
+          {% raw -%}
+            <a href="" class="channel-link ">{{channel}}</a>
+          {%- endraw %}
   </script>
 
 
   <script id="messages" type="text/x-handlebars-template">
     {% raw -%}
-      <div class="message" id={{id}} style="z-index:0;">
+      <div class="message" id={{id}}>
             <b>{{username}} </b> <span style="color:gray;"> at {{time}} </span>
             {{#if detele-button}}
               <button class="btn btn-outline-secondary delete-message-button"  style="float:right;" type="submit" onclick="deleteMessage(this);"> delete</button>
@@ -45,34 +45,60 @@
   </script>
 
   <script id="users" type="text/x-handlebars-template">
-    <div>
-      <ul>
-
-         <li>
-        {% raw -%}
-            <a href="{{href}}" data>{{user}}</a>
-        {%- endraw %}
-        </li>
-      </ul>
+    <div style="margin:5px;">
+      {% raw -%}
+          {{#each usernames}}
+          <div>
+                  <span>{{this}}</span> <button class="btn btn-outline-secondary add-user-button"  style="" type="submit" > Add</button>
+                  <hr>
+          </div>
+          {{/each}}
+      {%- endraw %}
     </div>
   </script>
 
-  <style>
-     #channelFeatures a
-     {
-       margin: 10px;
-       color: #000000;
-     }
-  </style>
+  <script id="add-user-message" type="text/x-handlebars-template">
+    <div style="margin-left:200px; top:1px; z-index:5; position:fixed; width:70vw;">
+      {% raw -%}
 
-  <script type="text/x-handlebars-template">
-
-    <div id="channelFeatures" style="position:fixed; top:0px; width:100%; background:#7aaae0; padding:10px; z-index:1;">
-          <a href=""> Users + </a>
-          <a href=""> User - </a>
-          <a href=""> Members</a>
+         <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{founder}} added you to   '{{channel}}' !
+              <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+          </div>
+      {%- endraw %}
+      <br>
     </div>
+  </script>
 
+  <script id="remove-user-message" type="text/x-handlebars-template">
+    <div style="margin-left:200px; top:1px; z-index:5; position:fixed; width:70vw;">
+      {% raw -%}
+
+         <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{founder}} removed you from   '{{channel}}' !
+              <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+          </div>
+      {%- endraw %}
+      <br>
+    </div>
+  </script>
+
+  <script id="channel-members" type="text/x-handlebars-template">
+    <br>
+    <div style="margin:5px;">
+      {% raw -%}
+          {{#each members}}
+          <div>
+                  <span>{{this}}</span> <button class="btn btn-outline-secondary remove-user-button"  style="" type="submit" > Remove</button>
+                  <hr>
+          </div>
+          {{/each}}
+      {%- endraw %}
+    </div>
   </script>
 
   <title>FLack | Home</title>
@@ -128,12 +154,12 @@
         <p> Create a channel</p>
         <form action="{{ url_for('create_channel') }}" id="create-channel-form" method="post">
           <div class="input-group" style="width:400px; margin: 0 auto">
-            <input type="text" class="form-control" placeholder="Enter channel name" aria-label="Recipient's username" aria-describedby="basic-addon2" id= "channel-name" required maxlength="19">
+            <input type="text" class="form-control" placeholder="Enter channel name" aria-label="Recipient's username" aria-describedby="basic-addon2" id= "channel-name" required maxlength="15">
             <div class="input-group-append">
               <button class="btn btn-outline-secondary" type="submit">Create Channel</button>
             </div>
           </div>
-          <p style="font-size:12px;"> Names must be lowercase, without space or period, shorter than 20 characters</p>
+          <p style="font-size:12px;"> Names must be lowercase, without space or period, shorter than 16 characters</p>
         </form>
       </div>
       <br>
@@ -154,48 +180,36 @@
    </div>
 
    <div id="channel-messages" class="main-div">
-      <div class="input-group"  id="#send-message" style="bottom:5px; position:fixed;; width:70vw; background-color:#b3cccc; z-index:2;" >
+      <div class="input-group"  id="#send-message" style="bottom:1px; position:fixed; width:80vw; background-color:#b3cccc; z-index:3;" >
            <input type="text" class="form-control" placeholder="Enter message" aria-label="Recipient's username" aria-describedby="basic-addon2" required id= "message" name="channel_name">
            <div class="input-group-append">
              <button class="btn btn-outline-secondary" type="submit" id="btn-send-message">send message</button>
            </div>
       </div>
 
-      <style>
-          #addNav
-          {
-            background-color: green;
-            background-color: #7aaae0;
-            padding: 12px;
-            top:0px !important;
-            display: fixed;
-          }
-
-          #addNav a{
-            text-decoration: none;
-            color: #414141;
-            padding: 5px;
-            margin: 5px;
-
-          }
 
 
-      </style>
-
-      <div id="addNav">
-        <nav>
-            <a href=""> Add user </a>
-            <a href="">  remove user</a>
-            <a href=""> Members</a>
+      <div>
+        <nav id="addNav" style="z-index:2;">
+            <a href="" id="addUser-btn"> Add user </a>
+            <a href="" id="member-list-btn"> Members</a>
             <a href=""> Leave group </a>
         </nav>
       </div>
 
 
-      <div id="messages-section">
+      <div id="messages-section" style="z-index:1">
 
       </div>
    </div>
+
+  <div class="main-div" id="usernames-list">
+
+  </div>
+
+  <div id="add-user-div" style="display:block;">
+
+  </div>
 
 
 </body>

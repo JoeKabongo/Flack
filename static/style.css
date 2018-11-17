@@ -15,7 +15,7 @@ body
   overflow-y: scroll;
 
 }
-.vertical-menu a {
+.vertical-menu a{
   color: #414141;
   display: block;
   padding: 12px;
@@ -58,6 +58,7 @@ body
 .main-div
 {
   margin-left:200px ;
+  display: none;
 
 }
 #channel-messages, #personal-message-div
@@ -83,7 +84,7 @@ body
 #send-message
 {
   bottom:5px !important;
-  position:absolute !important;
+  position:fixed !important;
   width: 70vw !important;
 }
 
@@ -141,4 +142,31 @@ h2 {
     animation-duration: 2s;
     animation-fill-mode: forwards;
     animation-play-state: paused;
+}
+
+
+#addNav
+{
+  background-color: #7aaae0;
+  padding: 12px;
+  position: fixed !important;
+  top:0 ;
+  width: 100vw;
+  margin-bottom: 10px;
+}
+
+#addNav a{
+  text-decoration: none;
+  color: #414141;
+  padding: 5px;
+  margin: 5px;
+}
+
+#addNav a:hover{
+  background-color: #ccc;
+}
+
+#add-user-div
+{
+  display: block !important;
 }
