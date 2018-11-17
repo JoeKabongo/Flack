@@ -19,9 +19,10 @@ document.addEventListener('DOMContentLoaded', function () {
       //return the the last channel the user visited
       if(localStorage.getItem("last-channel") != null)
       {
+
         let channel = localStorage.getItem("last-channel")
-        let route = "channel/json/" + channel;
-        channel_page(route, localStorage.getItem("last-channel"));
+        let route = "channel/json/" + channel + "/"+ localStorage.getItem("display-name");
+        channel_page(route, localStorage.getItem("last-channel"), true);
 
         // Push state to URL. and save it in the history
         document.title = "Flack | " + localStorage.getItem("last-channel");
@@ -33,29 +34,28 @@ document.addEventListener('DOMContentLoaded', function () {
         for(var i = 0; i < allLinks.length; i++)
         {
           if(allLinks[i].innerHTML == localStorage.getItem("last-channel"))
+          {
             update_links(allLinks[i]);
+          }
         }
 
       }
       else{
 
         let url =  document.URL.split("/");
-        if(url[url.length-1] == "create_channel")
+
+        if(url[url.length-2] == "create_channel" && url[url.length-1] == localStorage.getItem("display-name"))
         {
           let toDisplay = [document.querySelector("#navigation-bar"),document.querySelector("#create-channel-div")];
           updatePage(toDisplay);
           document.title = "Flack | Create channel";
-
-
         }
 
         else
         {
-          //go to home page
-          let toDisplay = [document.querySelector("#navigation-bar"),document.querySelector("#home-display")];
-          updatePage(toDisplay);
+          // go to homepage
+          goHomePage();
         }
-
       }
     }
 
@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', function () {
           document.querySelector("#signup-alert").style.display = "";
         }
 
-     }
+     };
    // Add data to send with request to the server
    let data = new FormData();
    data.append("username", username);
@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Push state to URL.
     document.title = "Flack | " + "Create channel";
-    history.pushState({"title":document.title, "action":"#create-channel-link"}, document.title, "/create_channel");
+    history.pushState({"title":document.title, "action":"#create-channel-link"}, document.title, "/create_channel/"+localStorage.getItem("display-name"));
 
     update_links();
 
@@ -152,66 +152,125 @@ document.addEventListener('DOMContentLoaded', function () {
 
      };
 
-     //when the user try to create a channel
-     document.querySelector("#create-channel-form").onsubmit = function(e)
+     //allow the creator of the chatrooms to add users, by displaying availabe they can add
+     document.querySelector("#addUser-btn").onclick = function(e, save=true)
      {
        e.preventDefault();
 
-       let channel = document.querySelector("#channel-name").value;
-
-       //open a http http XMLHttpRequest
+       let route = "/json/" + localStorage.getItem("last-channel")+"/add_user/"+localStorage.getItem("display-name");
+       //open a get request
        let request = new XMLHttpRequest();
-       request.open('POST', '/create_channel');
+       request.open("GET", route);
 
-       //Callback function for when request completes
-       request.onload = function (){
+       request.onload = function()
+       {
          let response = JSON.parse(request.responseText);
-
-         //check if the name chose for channel has already been taken
-
-         if(response.failure)
+         let usernames = response.usernames;
+         for(var i = 0; i < 2; i++)
          {
-           document.querySelector("#create-channel-alert").style.display = "";
-         }else{
-
-           //get the channel name
-           localStorage.setItem("last-channel", channel);
-           let route = "channel/json/" + channel;
-           channel_page(route, channel);
-
-           // Push state to URL. and save it in the history
-           document.title = "Flack | " + channel;
-           history.pushState({"title":document.title, "channel":route}, document.title, "/channel/"+channel);
-
-           let allLinks = document.querySelectorAll(".channel-link");
-
-           //sent channel name to server websocket
-           socket.emit('create channel', {"channel": channel, "user":localStorage.getItem("display-name")});
-
+           console.log(usernames[i]);
          }
-
-         //show the alert  message for 5 seconds
-         setTimeout(function(){
-           document.querySelector("#create-channel-success").style.display = "none";
-           document.querySelector("#create-channel-alert").style.display = "none";
-         }, 2000);
+         //add the message to the DOM
+         const post_template = Handlebars.compile(document.querySelector('#users').innerHTML);
+         const users = post_template({"usernames":usernames});
 
 
+         document.querySelector("#usernames-list").innerHTML = "";
 
-       };
+         document.querySelector("#usernames-list").innerHTML += users;
 
-       // send the name of the channel to the server
-       let data = new FormData();
-       data.append("channel-name",channel);
-       request.send(data);
+         //display list of users and navigation bar
+         let toDisplay = [document.querySelector("#navigation-bar"), document.querySelector("#usernames-list")];
+         updatePage(toDisplay);
 
-       return false;
+         if(save)
+         {
+           // Push state to URL.
+           document.title += " | Add user";
+         }
+         UsersList = document.querySelectorAll(".add-user-button");
+         UsersList.forEach(function(button){
+            button.onclick = function(e)
+            {
+              //remove the user from the list when add to the webpage
+              let parent = button.parentElement;
+              parent.remove();
+              let userToRemove = button.previousElementSibling.innerHTML;
+              e.preventDefault();
+              socket.emit("add user", {"founder":localStorage.getItem("display-name"), "channel":localStorage.getItem("last-channel"), "user":userToRemove})
+            };
+          });
+       }
 
+
+       request.send("");
+     };
+
+     //when the user click to see members in the chatroom
+     document.querySelector("#member-list-btn").onclick = function(e)
+     {
+        e.preventDefault();
+        let channel = localStorage.getItem("last-channel");
+        let request = new XMLHttpRequest;
+
+        request.open("GET", "/" +  channel + "/members")
+
+        request.onload = function()
+        {
+          let response = (JSON.parse(request.responseText)).members;
+          const post_template = Handlebars.compile(document.querySelector('#channel-members').innerHTML);
+          const members = post_template({'members': response});
+          document.querySelector('#usernames-list').innerHTML = "";
+          document.querySelector('#usernames-list').innerHTML += members;
+          document.querySelector('#usernames-list').style.display = "block";
+
+          // Push state to URL. and save it in the history
+          document.title = "Flack | " + channel + "| Members";
+
+          //display list of users and navigation bar
+          let toDisplay = [document.querySelector("#navigation-bar"), document.querySelector("#usernames-list")];
+          updatePage(toDisplay);
+
+
+          let buttons = document.querySelectorAll(".remove-user-button");
+          buttons.forEach(function(button){
+             button.onclick = function(e)
+             {
+               //remove the user from the list when add to the webpage
+               let parent = button.parentElement;
+               parent.remove();
+               let userToAdd = button.previousElementSibling.innerHTML;
+               e.preventDefault();
+               socket.emit("remove user", {"founder":localStorage.getItem("display-name"), "channel":localStorage.getItem("last-channel"), "user":userToAdd})
+             };
+           });
+
+        };
+
+        request.send();
      };
 
 
 
-   });
+  });
+
+  //alert a user when they had been added to a channel and add their channel to their navbar
+  socket.on('broadcast added_user', data => {
+    if(data.user == localStorage.getItem("display-name"))
+    {
+      add_channel_link(data.channel, false);
+
+      //add the channel to the DOM (navbar) if the name has not been taken
+      const post_template = Handlebars.compile(document.querySelector('#add-user-message').innerHTML);
+      const message = post_template({'channel': data.channel, 'founder':data.founder});
+      document.querySelector('body').innerHTML += message;
+
+      all_channel_link_update();
+
+
+    }
+
+  });
 
    //broadcast the message to all the users.
    socket.on('broadcast message', data => {
@@ -247,49 +306,123 @@ document.addEventListener('DOMContentLoaded', function () {
 
    });
 
-   socket.on("broadcast new_channel", data => {
+   //alert a user when they had been added to a channel and add their channel to their navbar
+   socket.on('broadcast remove_user', data => {
+     if(data.user == localStorage.getItem("display-name"))
+     {
 
-     let channel = data.channel;
-     var a = document.createElement('a');
-     var linkText = document.createTextNode(channel);
-     a.appendChild(linkText);
-     a.href = "";
-     a.id = channel;
-     if(data.user === localStorage.getItem("display-name"))
-        a.className = "channel-link current-channel";
-     else
-        a.className = "channel-link";
-      a.title = channel;
+       //add the channel to the DOM (navbar) if the name has not been taken
+       const post_template = Handlebars.compile(document.querySelector('#remove-user-message').innerHTML);
+       const message = post_template({'channel': data.channel, 'founder':data.founder});
+       document.querySelector('body').innerHTML += message;
 
-      // insert the link at the right place so the nav bar stay alphabetically sorted
-      if(ALL_CHANNEL_LINKS.length == 0 || ALL_CHANNEL_LINKS[ALL_CHANNEL_LINKS.length-1].innerHTML < channel)
-      {
-        document.querySelector("#channels").append(a);
-      }
-      else{
-        var referenceNode = ALL_CHANNEL_LINKS[0];
-
-        for(var i =0; i < ALL_CHANNEL_LINKS.length; i++)
+      ALL_CHANNEL_LINKS.forEach(function(link){
+        console.log("link : ", link.innerHTML);
+        console.log("channel: ", data.channel);
+        if(link.innerHTML == data.channel)
         {
-          referenceNode = ALL_CHANNEL_LINKS[i];
-          if(channel < ALL_CHANNEL_LINKS[i].innerHTML)
-              break;
+            link.innerHTML = "jonathan";
+            console.log(link.innerHTML);
         }
+      })
+     }
 
-       // Insert the new node before the reference node
-       referenceNode.parentNode.insertBefore(a, referenceNode);
-      }
-
-     // const post_template = Handlebars.compile(document.querySelector('#new-channels').innerHTML);
-     //const new_channel = post_template({'channel': channel});
-     //document.querySelector('#channels').appendChild(a);
-
-     //update all links variable
-     ALL_CHANNEL_LINKS = document.querySelectorAll(".channel-link");
-     all_channel_link_update();
    });
 
+   //when the user try to create a channel
+   document.querySelector("#create-channel-form").onsubmit = function(e)
+   {
+     e.preventDefault();
 
+     let channel = document.querySelector("#channel-name").value;
+
+     //open a http http XMLHttpRequest
+     let request = new XMLHttpRequest();
+     request.open('POST', '/create_channel_post');
+
+     //Callback function for when request completes
+     request.onload = function (){
+       let response = JSON.parse(request.responseText);
+
+       //check if the name chose for channel has already been taken
+
+       if(response.failure)
+       {
+         document.querySelector("#create-channel-alert").style.display = "";
+       }else{
+
+         //get the channel name
+         localStorage.setItem("last-channel", channel);
+         let route = "channel/json/" + channel +"/"+localStorage.getItem("display-name");
+         channel_page(route, channel, false);
+
+         // Push state to URL. and save it in the history
+         document.title = "Flack | " + channel;
+         history.pushState({"title":document.title, "channel":route}, document.title, "/channel/"+channel);
+
+         //add channel link to the dom
+         add_channel_link(channel, true);
+
+       }
+
+       //show the alert  message for 5 seconds
+       setTimeout(function(){
+         document.querySelector("#create-channel-success").style.display = "none";
+         document.querySelector("#create-channel-alert").style.display = "none";
+       }, 2000);
+
+     };
+
+     // send the name of the channel to the server
+     let data = new FormData();
+     data.append("founder", localStorage.getItem("display-name"));
+     data.append("channel-name",channel);
+     request.send(data);
+
+     return false;
+
+   };
+
+   //add channel to navbar
+   function add_channel_link(channel, isCurrent)
+   {
+     let allLinks = document.querySelectorAll(".channel-link");
+
+      //create a new link
+      var a = document.createElement('a');
+      var linkText = document.createTextNode(channel);
+      a.appendChild(linkText);
+      a.href = "";
+      a.id = channel;
+      if (isCurrent)
+        a.className = "channel-link current-channel";
+      else
+        a.className = "channel-link";
+
+      a.title = channel;
+
+       // insert the link at the right place so the nav bar stay alphabetically sorted
+       if(ALL_CHANNEL_LINKS.length == 0 || ALL_CHANNEL_LINKS[ALL_CHANNEL_LINKS.length-1].innerHTML < channel)
+       {
+         document.querySelector("#channels").append(a);
+       }
+       else{
+         var referenceNode = ALL_CHANNEL_LINKS[0];
+
+         for(var i =0; i < ALL_CHANNEL_LINKS.length; i++)
+         {
+           referenceNode = ALL_CHANNEL_LINKS[i];
+           if(channel < ALL_CHANNEL_LINKS[i].innerHTML)
+               break;
+         }
+
+        // Insert the new node before the reference node
+        referenceNode.parentNode.insertBefore(a, referenceNode);
+      }
+
+      ALL_CHANNEL_LINKS = document.querySelectorAll(".channel-link");
+      all_channel_link_update();
+   }
 
 
   // not allow space or dot in channel name input
@@ -298,10 +431,12 @@ document.addEventListener('DOMContentLoaded', function () {
        return false;
     if (e.which === 190)
        return false;
-  }
+  };
   // Make all letters lower case
   document.querySelector("#channel-name").onkeyup = function(e){
     document.querySelector("#channel-name").value = document.querySelector("#channel-name").value.toLowerCase();
+    document.querySelector("#create-channel-alert").style.display = "none";
+    document.querySelector("#create-channel-success").style.display = "none";
   };
 
   //close the create-channel alert message or sucess message
@@ -312,18 +447,20 @@ document.addEventListener('DOMContentLoaded', function () {
   {
     document.querySelector("#create-channel-success").style.display = "none";
   }
-  document.querySelector("#channel-name").onkeyup = function(){
-    document.querySelector("#create-channel-alert").style.display = "none";
-    document.querySelector("#create-channel-success").style.display = "none";
-  }
+
 
 
   //when the user return to the homepage
    document.querySelector(".Home").onclick = function (e){
     e.preventDefault();
+    goHomePage();
+  };
 
+  //goes to the homepage
+  function goHomePage()
+  {
     let request = new XMLHttpRequest();
-    request.open('GET', '/home');
+    request.open('GET', '/home/'+localStorage.getItem("display-name"));
 
     request.onload = function ()
     {
@@ -335,7 +472,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
       for(var i = 0; i < channels.length; i++){
         //add the channel to the DOM (navbar) if the name has not been taken
-        const post_template = Handlebars.compile(document.querySelector('#new-channels').innerHTML);
+        const post_template = Handlebars.compile(document.querySelector('#new-channel').innerHTML);
         const new_channel = post_template({'channel': channels[i]});
         document.querySelector('#channels').innerHTML += new_channel;
       }
@@ -357,7 +494,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     request.send();
     return false;
-  };
+  }
 
 
   //when the user click on a channel, display channel information(messages)
@@ -376,7 +513,7 @@ document.addEventListener('DOMContentLoaded', function () {
         localStorage.setItem("last-channel", channel);
 
         ///update the webpage by calling the channel page function
-        let route = "channel/json/" + channel;
+        let route = "channel/json/" + channel + "/"+ localStorage.getItem("display-name");
         channel_page(route, channel);
 
         // Push state to URL. and save it in the history
@@ -411,14 +548,21 @@ document.addEventListener('DOMContentLoaded', function () {
           update_links();
         }
 
+        else if(data.action == "#addUser-btn")
+        {
+          document.querySelector("#addUser-btn").onclick(e, save=false);
+        }
+
         else{
           //update the display of the webpage
           updatePage([document.querySelector("#home-display"), document.querySelector("#navigation-bar")]);
+          update_links();
+
       }
     };
 
  // retrieve data of a channel from the server and display on the webpage
- function channel_page(route, channel)
+ function channel_page(route, channel, reload = false)
  {
 
    //open a get request
@@ -464,6 +608,24 @@ document.addEventListener('DOMContentLoaded', function () {
        }
        window.scrollTo(0,document.body.scrollHeight);
 
+       // if the use
+       if(reload)
+       {
+         let channels = response.channels;
+         document.querySelector('#channels').innerHTML = "";
+
+         for(var i = 0; i < channels.length; i++){
+           //add the channel to the DOM (navbar) if the name has not been taken
+           const post_template = Handlebars.compile(document.querySelector('#new-channel').innerHTML);
+           const new_channel = post_template({'channel': channels[i]});
+           document.querySelector('#channels').innerHTML += new_channel;
+         }
+
+         //update all links variable
+         ALL_CHANNEL_LINKS = document.querySelectorAll(".channel-link");
+         all_channel_link_update();
+       }
+
 
    };
    // Send channel name to ther server request to the server
@@ -471,7 +633,6 @@ document.addEventListener('DOMContentLoaded', function () {
    data.append("channel-name",channel);
    request.send(data);
  }
-
 });
 
 // update the page
@@ -482,7 +643,9 @@ function updatePage(divs)
   for(var i = 0; i < mainDivs.length; i++)
   {
     if(divs.includes(mainDivs[i]))
-       mainDivs[i].style.display ="";
+    {
+       mainDivs[i].style.display="block";
+     }
     else
        mainDivs[i].style.display = "none";
   }
@@ -495,7 +658,7 @@ function current_time(){
 }
 
 
-var days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+var days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 var months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 //return the ordinal versin of a number.
@@ -524,7 +687,7 @@ function get_ordinal(num)
 function get_date()
 {
   var time = new Date();
-  day = days[time.getDay()-1];
+  day = days[time.getDay()];
   month = months[time.getMonth()];
   date = get_ordinal(time.getDate());
   year = time.getYear();
@@ -534,17 +697,23 @@ function get_date()
 // update channel link
 function update_links(link)
 {
-  let allLinks = document.querySelectorAll(".channel-link");
-  for(var i = 0; i < allLinks.length; i++)
+  ALL_CHANNEL_LINKS = document.querySelectorAll(".channel-link");
+  for(var i = 0; i < ALL_CHANNEL_LINKS.length; i++)
   {
-    if (allLinks[i] == link)
+    if (ALL_CHANNEL_LINKS[i] == link)
     {
-      link.classList.add('current-channel');
+      ALL_CHANNEL_LINKS[i].classList.add('current-channel');
+      //console.log("link", link);
     }
     else
     {
-      allLinks[i].classList.remove("current-channel");
+      ALL_CHANNEL_LINKS[i].classList.remove("current-channel");
     }
+  }
+
+  for(var i = 0; i < 2; i++)
+  {
+    console.log(ALL_CHANNEL_LINKS[i]);
   }
 }
 
