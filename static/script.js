@@ -254,6 +254,41 @@ document.addEventListener('DOMContentLoaded', function () {
 
   });
 
+  //update links after adding or removing a user
+  function updateAfterAddRemoveUser()
+  {
+    ALL_CHANNEL_LINKS = document.querySelectorAll(".channel-link");
+     ALL_CHANNEL_LINKS.forEach(function(link){
+        link.onclick =function(e){
+          console.log(link);
+
+          //prevent link from submitting
+          e.preventDefault();
+          //get the channel name
+          let channel = link.innerHTML;
+
+          //remember the channel
+          localStorage.setItem("last-channel", channel);
+
+          ///update the webpage by calling the channel page function
+          let route = "channel/json/" + channel + "/"+ localStorage.getItem("display-name");
+          channel_page(route, channel);
+
+          // Push state to URL. and save it in the history
+          document.title = "Flack | " + channel;
+          history.pushState({"title":document.title, "channel":route}, document.title, "/channel/"+channel);
+          update_links(this);
+
+        }
+      });
+
+      //when the user return to the homepage
+       document.querySelector(".Home").onclick = function (e){
+        e.preventDefault();
+        goHomePage();
+      };
+  }
+
   //alert a user when they had been added to a channel and add their channel to their navbar
   socket.on('broadcast added_user', data => {
     if(data.user == localStorage.getItem("display-name"))
@@ -264,10 +299,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const post_template = Handlebars.compile(document.querySelector('#add-user-message').innerHTML);
       const message = post_template({'channel': data.channel, 'founder':data.founder});
       document.querySelector('body').innerHTML += message;
-
-      all_channel_link_update();
-
-
+      updateAfterAddRemoveUser();
     }
 
   });
@@ -316,15 +348,23 @@ document.addEventListener('DOMContentLoaded', function () {
        const message = post_template({'channel': data.channel, 'founder':data.founder});
        document.querySelector('body').innerHTML += message;
 
+      ALL_CHANNEL_LINKS = document.querySelectorAll(".channel-link");
       ALL_CHANNEL_LINKS.forEach(function(link){
-        console.log("link : ", link.innerHTML);
-        console.log("channel: ", data.channel);
         if(link.innerHTML == data.channel)
         {
-            link.innerHTML = "jonathan";
-            console.log(link.innerHTML);
+          link.remove();
+        }
+
+        if(localStorage.getItem("last-channel") == link.innerHTML)
+        {
+          //update the display of the webpage
+          updatePage([document.querySelector("#navigation-bar"), ["for remove user", data.channel, data.founder]]);
+          localStorage.removeItem("last-channel");
         }
       })
+
+      updateAfterAddRemoveUser();
+
      }
 
    });
@@ -523,6 +563,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
       };
     })
+
+
   }
 
 
@@ -649,6 +691,21 @@ function updatePage(divs)
     else
        mainDivs[i].style.display = "none";
   }
+
+  if(divs[divs.length-1][0] == "for remove user")
+  {
+    //alert the user that they have been remove
+    const post_template = Handlebars.compile(document.querySelector('#remove-user-message').innerHTML);
+    console.log(divs[divs.length-1][1]);
+    divs[divs.length-1][2]
+
+    const message = post_template({'channel': divs[divs.length-1][1], 'founder':divs[divs.length-1][2]});
+    document.querySelector('body').innerHTML += message;
+
+    // Push state to URL. and save it in the history
+    document.title = "FLACK | Home"
+    history.pushState({"title":document.title, }, document.title, "/");
+  }
 }
 
 //Return the currentTime in form of 09:05 AM
@@ -709,11 +766,6 @@ function update_links(link)
     {
       ALL_CHANNEL_LINKS[i].classList.remove("current-channel");
     }
-  }
-
-  for(var i = 0; i < 2; i++)
-  {
-    console.log(ALL_CHANNEL_LINKS[i]);
   }
 }
 
