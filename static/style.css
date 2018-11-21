@@ -67,26 +67,26 @@ body
 
 }
 
-#signup-div, #create-channel-div
+ #create-channel-div
 {
   margin-top:50vh ;
   text-align:center;
 }
 
-
-#signup-div .input-group
+/*#signin-form
 {
-  width:300px;
-  margin: 0 auto
+  position: relative;
+} */
+
+#signup-div
+{
+  width: 70vw;
+}
+#signin .input-group
+{
+  width:500px;
 }
 
-/* the send message input */
-#send-message
-{
-  bottom:5px !important;
-  position:fixed !important;
-  width: 70vw !important;
-}
 
 
 .message
@@ -112,7 +112,7 @@ h2 {
 }
 
 
-.current-channel{
+.current-channel, .highlight{
   background-color: #ccc;
 }
 
@@ -145,7 +145,7 @@ h2 {
 }
 
 
-#addNav
+#channel-nav-bar
 {
   background-color: #7aaae0;
   padding: 12px;
@@ -153,20 +153,41 @@ h2 {
   top:0 ;
   width: 100vw;
   margin-bottom: 10px;
+  z-index: 2;
 }
 
-#addNav a{
+#channel-nav-bar a{
   text-decoration: none;
   color: #414141;
   padding: 5px;
   margin: 5px;
 }
 
-#addNav a:hover{
+#channel-nav-bar a:hover{
   background-color: #ccc;
 }
 
-#add-user-div
+#input-send-message-div
 {
-  display: block !important;
+  background-color:#b3cccc;
+  width: 100vw;
+  z-index:4;
+  bottom:1px;
+  position:fixed;
+}
+
+/* the send message input */
+#send-message
+{
+  width: 80vw !important;
+}
+
+#messages-section
+{
+  z-index:1;
+}
+
+#leave-message-warning
+{
+  z-index: 3
 }

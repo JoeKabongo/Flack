@@ -4,6 +4,8 @@ import sys
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from flask_socketio import SocketIO, emit, send
 import json
+from passlib.hash import pbkdf2_sha256
+
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
@@ -28,6 +30,8 @@ channel_contents = {}
 #maps users to channels that are members, or channel they can access
 users_toChannels = {}
 
+#map users and their passwords
+users_passwords = {}
 
 def insertIt(theList, item):
     """
@@ -84,14 +88,58 @@ def signup():
     """
     global  usernames
     username = request.form.get("username")
-    print("the username ", username)
+    password = request.form.get("password")
+    confirm_password = request.form.get("confirm_password")
+
+    print("password: ", password)
+    print("confirm_pass: ", confirm_password)
+    print("username : ", username)
+
+
+
     print("all usernames: ", usernames)
     if username in usernames:
-        return jsonify({"success":False})
+        return jsonify({"success":False, "message":"This username has already been taken, sorry"})
+
+    #if password does not match
+    if password != confirm_password:
+        return jsonify({"sucess": False, "message":"Make sure the passwords match"})
+
     else:
+        # hash the password
+        hash = pbkdf2_sha256.hash(password)
+
+        users_passwords[username] = hash
+
         insertIt(usernames, username)
         users_toChannels[username] = []
         return jsonify({"success":True})
+
+@app.route("/signin", methods=["POST"])
+def signin():
+    """
+        allow the user to sign in
+    """
+    global  usernames
+    username = request.form.get("username")
+    password = request.form.get("password")
+
+    if username not in usernames:
+        return jsonify({"success": False, "message":"The username you entered cannot be found in our records."})
+
+    hash_password = users_passwords[username]
+    if pbkdf2_sha256.verify(password, hash_password) is False:
+        return jsonify({"success": False, "message":"The password you entered does not match with the username"})
+    else:
+        print("we should be in here")
+        return jsonify({"success": True})
+
+
+"""@app.route("/signout")
+def signout():
+
+
+    return  """
 
 @app.route("/create_channel_post", methods=["POST"])
 def create_channel():
@@ -108,7 +156,7 @@ def create_channel():
         insertIt(channel_names, channel)
         channel_contents[channel] = [{"next_messageId": 0, "members":[founder], "founder":founder}]
         insertIt(users_toChannels[founder], channel)
-        print("this is channel content", channel_contents)
+        print("this is channel content", channel_contents[channel])
         return jsonify({"failure":False})
 
 @app.route("/create_channel/<username>")
@@ -125,9 +173,6 @@ def channel_page(channel_name, username):
 
     else:
         return redirect(url_for("home", username=username))
-
-
-
 
 
 @app.route("/channel/<channel_name>")
@@ -196,16 +241,21 @@ def usernames_list(channel, username):
     """
         render list of usernames that can be added to the chatroom
     """
+    print("channels " , channel_contents[channel])
     copy = usernames[:]
     result = []
 
     #lis of all members
     members = channel_contents[channel][0]["members"]
     length = len(copy)
-
+    print("copy: ", copy)
+    print("members: ", members)
     for i in range(0, length):
         if copy[i] not in members:
             result.append(copy[i])
+    print("result: ", result)
+    print("channels " , channel_contents[channel])
+
     return jsonify({"usernames":result})
 
 
@@ -226,15 +276,16 @@ def add_user(data):
     socketio.emit('broadcast added_user', {'founder':founder, 'user': user, 'channel':channel}, broadcast=True)
 
 
-@app.route("/<channel>/members")
-def members(channel):
+@app.route("/<channel>/members/<user>")
+def members(channel, user):
     """
         return list of all the members in the chatrooms
     """
     print("we supposed to be in here")
-    return jsonify({"members":channel_contents[channel][0]["members"]})
 
-
+    copy = channel_contents[channel][0]["members"][:]
+    copy.remove(user)
+    return jsonify({"members":copy})
 
 
 @socketio.on("remove user")
@@ -250,3 +301,22 @@ def remove_user(data):
     users_toChannels[user].remove(channel)
 
     socketio.emit('broadcast remove_user', {'founder':founder, 'user': user, 'channel':channel}, broadcast=True)
+
+@app.route("/leave_chatroom/<username>/<channel>")
+def leave_chatroom(username, channel):
+    """
+        Allow user to leave the chatroom
+    """
+    print(channel_contents[channel][0]["members"])
+    try:
+        channel_contents[channel][0]["members"].remove(username)
+        users_toChannels[username].remove(channel)
+
+        #check if there is still members in channel, if no members, delete the chatroom
+        if len(channel_contents[channel][0]["members"]) == 0:
+            channel_contents.pop(channel)
+            channel_names.remove(channel)
+
+        return jsonify({"success": True})
+    except:
+        return jsonify({"success": False})

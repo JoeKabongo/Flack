@@ -10,6 +10,10 @@ document.addEventListener('DOMContentLoaded', function () {
     //check if it is the first time the person visit the website on this browser
     if (localStorage.getItem('display-name') == null)
     {
+      // Push state to URL. and save it in the history
+      document.title = "Flack | Sign in/Sign up" ;
+      history.pushState({"title":document.title, "signinSignupPage":true}, document.title,  "/");
+
       //display sign up form
       let toDisplay = [document.querySelector("#signup-div")]
       updatePage(toDisplay);
@@ -61,13 +65,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
   //submit the sign up form. When the user give a display name for the site use
-  document.querySelector('#signup-form').onsubmit = function (){
+  document.querySelector('#signup-form').onsubmit = function (e){
 
+    e.preventDefault();
     //open a http request
     let request = new XMLHttpRequest();
     request.open('POST', '/signup');
 
     let username = document.querySelector("#display-name").value;
+    let password = document.querySelector("#signup-password").value;
+    let confirm_password = document.querySelector("#signup_assword_confirmation").value;
 
     //Callback function for when request completes
     request.onload = function  ()  {
@@ -77,22 +84,78 @@ document.addEventListener('DOMContentLoaded', function () {
         if(response.success){
 
           //display home and navigation bar
-          let toDisplay = [document.querySelector("#navigation-bar"), document.querySelector("#home-display")];
-          updatePage(toDisplay);
-
           localStorage.setItem("display-name", username);
+          goHomePage();
+
         }else{
           document.querySelector("#signup-alert").style.display = "";
+          document.querySelector("#span-alert-message").innerHTML = response.message;
         }
 
      };
    // Add data to send with request to the server
    let data = new FormData();
    data.append("username", username);
+   data.append("password", password);
+   data.append("confirm_password", confirm_password);
    request.send(data)
 
    return false;
   };
+
+  //when the user is signin in
+  document.querySelector("#signin-form").onsubmit = function (e)
+  {
+    e.preventDefault();
+    let username = document.querySelector("#display-name1").value;
+    let password = document.querySelector("#signin-password").value;
+
+    let request = new XMLHttpRequest();
+
+    request.open("POST", "/signin");
+
+    //when the request has loaded
+    request.onload = function ()
+    {
+      let response = JSON.parse(request.responseText);
+
+      //if the user entered the correct information, go to home page, else alert the user
+      if(response.success)
+      {
+        //display home and navigation bar
+        localStorage.setItem("display-name", username);
+        goHomePage();
+      }
+      else
+      {
+        document.querySelector("#signup-alert").style.display = "";
+        document.querySelector("#span-alert-message").innerHTML = response.message;
+      }
+    }
+
+    // Add data to send with request to the server
+    let data = new FormData();
+    data.append("username", username);
+    data.append("password", password);
+    request.send(data)
+
+    return false;
+  }
+
+  //allow the user to signout
+  document.querySelector("#signout-link").onclick = function(e)
+  {
+    e.preventDefault();
+
+    // this is when the user sign out and click the back button
+    localStorage.setItem("recovery-name", localStorage.getItem("display-name"));
+
+    localStorage.removeItem("display-name");
+    //display sign up form
+    let toDisplay = [document.querySelector("#signup-div")]
+    updatePage(toDisplay);
+
+  }
 
   //close the signup alert box
   document.querySelector("#close-signup-alert").onclick = function(){
@@ -124,6 +187,7 @@ document.addEventListener('DOMContentLoaded', function () {
     return false;
   };
 
+
   // Connect to websocket
   var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
 
@@ -131,8 +195,8 @@ document.addEventListener('DOMContentLoaded', function () {
    socket.on('connect', () => {
 
      //When the user send a message
-     document.querySelector("#btn-send-message").onclick = function(){
-
+     document.querySelector("#btn-send-message").onclick = function()
+     {
        //remove leading withe space from the message
        let message = document.querySelector("#message").value.trim();
 
@@ -146,16 +210,19 @@ document.addEventListener('DOMContentLoaded', function () {
          socket.emit('sending message', {"date": date, "channel":channel, "message": message, "current_time":currentTime, "username":username});
          return false;
        }
-
        //reset the input to be empty
        document.querySelector("#message").value = "";
-
      };
 
      //allow the creator of the chatrooms to add users, by displaying availabe they can add
      document.querySelector("#addUser-btn").onclick = function(e, save=true)
      {
        e.preventDefault();
+
+       //only highlight the clicked link
+       this.classList.add("highlight");
+       document.querySelector("#member-list-btn").classList.remove("highlight");
+       document.querySelector('#channel-message-btn').classList.remove("highlight");
 
        let route = "/json/" + localStorage.getItem("last-channel")+"/add_user/"+localStorage.getItem("display-name");
        //open a get request
@@ -166,28 +233,16 @@ document.addEventListener('DOMContentLoaded', function () {
        {
          let response = JSON.parse(request.responseText);
          let usernames = response.usernames;
-         for(var i = 0; i < 2; i++)
-         {
-           console.log(usernames[i]);
-         }
+
          //add the message to the DOM
          const post_template = Handlebars.compile(document.querySelector('#users').innerHTML);
          const users = post_template({"usernames":usernames});
 
 
          document.querySelector("#usernames-list").innerHTML = "";
-
          document.querySelector("#usernames-list").innerHTML += users;
+         document.title = "Flack | " + localStorage.getItem("last-channel")+ " | Add user";
 
-         //display list of users and navigation bar
-         let toDisplay = [document.querySelector("#navigation-bar"), document.querySelector("#usernames-list")];
-         updatePage(toDisplay);
-
-         if(save)
-         {
-           // Push state to URL.
-           document.title += " | Add user";
-         }
          UsersList = document.querySelectorAll(".add-user-button");
          UsersList.forEach(function(button){
             button.onclick = function(e)
@@ -200,8 +255,10 @@ document.addEventListener('DOMContentLoaded', function () {
               socket.emit("add user", {"founder":localStorage.getItem("display-name"), "channel":localStorage.getItem("last-channel"), "user":userToRemove})
             };
           });
-       }
 
+          document.querySelector("#messages-section").style.display = "none";
+          document.querySelector("#send-message").style.display = "none";
+       };
 
        request.send("");
      };
@@ -209,29 +266,31 @@ document.addEventListener('DOMContentLoaded', function () {
      //when the user click to see members in the chatroom
      document.querySelector("#member-list-btn").onclick = function(e)
      {
+        this.classList.add("highlight");
+        document.querySelector("#addUser-btn").classList.remove("highlight");
+        document.querySelector('#channel-message-btn').classList.remove("highlight");
+
         e.preventDefault();
         let channel = localStorage.getItem("last-channel");
+        let user = localStorage.getItem("display-name");
         let request = new XMLHttpRequest;
 
-        request.open("GET", "/" +  channel + "/members")
+        request.open("GET", "/" +  channel + "/members/" + user)
 
         request.onload = function()
         {
           let response = (JSON.parse(request.responseText)).members;
           const post_template = Handlebars.compile(document.querySelector('#channel-members').innerHTML);
-          const members = post_template({'members': response});
+          const members = post_template({'members': response, "you":localStorage.getItem("display-name")});
           document.querySelector('#usernames-list').innerHTML = "";
           document.querySelector('#usernames-list').innerHTML += members;
           document.querySelector('#usernames-list').style.display = "block";
 
-          // Push state to URL. and save it in the history
+          //change title name
           document.title = "Flack | " + channel + "| Members";
 
-          //display list of users and navigation bar
-          let toDisplay = [document.querySelector("#navigation-bar"), document.querySelector("#usernames-list")];
-          updatePage(toDisplay);
-
-
+          document.querySelector("#messages-section").style.display = "none";
+          document.querySelector("#send-message").style.display = "none";
           let buttons = document.querySelectorAll(".remove-user-button");
           buttons.forEach(function(button){
              button.onclick = function(e)
@@ -244,13 +303,9 @@ document.addEventListener('DOMContentLoaded', function () {
                socket.emit("remove user", {"founder":localStorage.getItem("display-name"), "channel":localStorage.getItem("last-channel"), "user":userToAdd})
              };
            });
-
         };
-
         request.send();
      };
-
-
 
   });
 
@@ -289,6 +344,77 @@ document.addEventListener('DOMContentLoaded', function () {
       };
   }
 
+  document.querySelector("#leave-chatroom-btn").onclick = function (e)
+  {
+    console.log(" we are on leave chatroom");
+    document.querySelector("#leave-message-warning").style.display = "block";
+    e.preventDefault();
+
+    //allow the user to confirm that they are leaving the group
+    document.querySelector("#confirm-leave-group").onclick = function(e)
+    {
+      e.preventDefault();
+
+      let username = localStorage.getItem("display-name");
+      let channel = localStorage.getItem("last-channel");
+
+      let request = new XMLHttpRequest();
+      request.open("GET", "/leave_chatroom/" + username +"/" +channel);
+
+      request.onload = function()
+      {
+        let response = JSON.parse(request.responseText);
+
+        //when was sucessfull
+        if(response.success)
+        {
+          ALL_CHANNEL_LINKS.forEach(function(link){
+
+            if(link.innerHTML == channel)
+            {
+              link.remove();
+              ALL_CHANNEL_LINKS = document.querySelectorAll(".channel-link")
+              goHomePage();
+            }
+          })
+
+          localStorage.removeItem("last-channel");
+        }
+        else
+        {
+          alert("sorry went wrong, sorry");
+        }
+        document.querySelector("#leave-message-warning").style.display = "none";
+      }
+
+      request.send();
+    }
+  }
+
+
+  //refresh sned message button so it works properly when it is clicked
+ function update_send_message_btn()
+ {
+   //update onclick
+   document.querySelector("#btn-send-message").onclick = function()
+   {
+     //remove leading withe space from the message
+     let message = document.querySelector("#message").value.trim();
+
+     //only send message if then input is not empty. with current time , useraname and channel it was sent in
+     if(message != "")
+     {
+       let currentTime = current_time();
+       let date = get_date();
+       let username = localStorage.getItem("display-name");
+       let channel =  localStorage.getItem("last-channel");
+       socket.emit('sending message', {"date": date, "channel":channel, "message": message, "current_time":currentTime, "username":username});
+       return false;
+     }
+     //reset the input to be empty
+     document.querySelector("#message").value = "";
+   };
+ }
   //alert a user when they had been added to a channel and add their channel to their navbar
   socket.on('broadcast added_user', data => {
     if(data.user == localStorage.getItem("display-name"))
@@ -300,8 +426,11 @@ document.addEventListener('DOMContentLoaded', function () {
       const message = post_template({'channel': data.channel, 'founder':data.founder});
       document.querySelector('body').innerHTML += message;
       updateAfterAddRemoveUser();
-    }
 
+      //refresh send message button so it works properly when it is clicked
+      update_send_message_btn()
+
+    }
   });
 
    //broadcast the message to all the users.
@@ -364,8 +493,10 @@ document.addEventListener('DOMContentLoaded', function () {
       })
 
       updateAfterAddRemoveUser();
-
      }
+     //refresh sned message button so it works properly when it is clicked
+      update_send_message_btn()
+
 
    });
 
@@ -573,6 +704,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const data = e.state;
         document.title = data.title;
 
+        if(localStorage.getItem("display-name") == null)
+        {
+          localStorage.setItem("display-name", localStorage.getItem("recovery-name"));
+        }
         //if its a channel page
         if(data.channel)
         {
@@ -595,13 +730,40 @@ document.addEventListener('DOMContentLoaded', function () {
           document.querySelector("#addUser-btn").onclick(e, save=false);
         }
 
+        else if(data.signinSignupPage)
+        {
+          //display sign up form
+          let toDisplay = [document.querySelector("#signup-div")]
+          updatePage(toDisplay);
+        }
+
+        //when user return to homapage
         else{
           //update the display of the webpage
           updatePage([document.querySelector("#home-display"), document.querySelector("#navigation-bar")]);
           update_links();
-
       }
     };
+
+    //when user click on messages link
+    document.querySelector("#channel-message-btn").onclick = function (e){
+
+      //only highlight the clicked link
+      this.classList.add("highlight");
+      document.querySelector("#addUser-btn").classList.remove("highlight");
+      document.querySelector('#member-list-btn').classList.remove("highlight");
+
+      //change title of the page
+      document.title = "Flack | " + localStorage.getItem("last-channel") + " | messages";
+
+      e.preventDefault();
+      let channel = localStorage.getItem("last-channel");
+      let displayName = localStorage.getItem("display-name");
+
+      let route = "channel/json/" + channel+ "/"+ displayName;
+      channel_page(route, channel);
+
+    }
 
  // retrieve data of a channel from the server and display on the webpage
  function channel_page(route, channel, reload = false)
@@ -666,7 +828,17 @@ document.addEventListener('DOMContentLoaded', function () {
          //update all links variable
          ALL_CHANNEL_LINKS = document.querySelectorAll(".channel-link");
          all_channel_link_update();
+
        }
+       //update the display of the channel section
+       document.querySelector("#usernames-list").innerHTML = "";
+       document.querySelector("#send-message").style.display = "";
+       document.querySelector("#messages-section").style.display="";
+
+       //only highlight the message link in the navbar of the channel
+       document.querySelector("#channel-message-btn").classList.add("highlight");
+       document.querySelector("#addUser-btn").classList.remove("highlight");
+       document.querySelector("#member-list-btn").classList.remove("highlight");
 
 
    };
