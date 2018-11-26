@@ -320,3 +320,6 @@ def leave_chatroom(username, channel):
         return jsonify({"success": True})
     except:
         return jsonify({"success": False})
+
+if __name__ == '__main__':
+    app.run()
