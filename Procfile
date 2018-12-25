@@ -1,1 +1,2 @@
-web: gunicorn application:app --log-file=-
+$ vim Procfile
+web: gunicorn application:app
