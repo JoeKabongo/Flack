@@ -2,3 +2,5 @@ gunicorn==19.9.0
 flask_socketio
 flask
 passlib
+passlib.hash
+json
