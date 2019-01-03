@@ -1,8 +1,1 @@
-A web app similar to Slack.
-
-User can:
--create chat chatrooms
--add users to their chatroom
--remove users from their chatrooms
--delete their chatrooms
--Send and receive message within their chatrooms
+A web app that allow user to signup and create chatrooms and have chat with other users withing chatrooms
