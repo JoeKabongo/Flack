@@ -187,7 +187,7 @@ document.addEventListener('DOMContentLoaded', function () {
        document.querySelector("#member-list-btn").classList.remove("highlight");
        document.querySelector('#channel-message-btn').classList.remove("highlight");
 
-       let route = "/json/" + localStorage.getItem("last-channel")+"/add_user/"+localStorage.getItem("display-name");
+       let route = "/json/" + localStorage.getItem("last-channel-id")+"/add_user/"+localStorage.getItem("display-name");
        //open a get request
        let request = new XMLHttpRequest();
        request.open("GET", route);
@@ -234,7 +234,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.querySelector('#channel-message-btn').classList.remove("highlight");
 
         e.preventDefault();
-        let channel = localStorage.getItem("last-channel");
+        let channel = localStorage.getItem("last-channel-id");
         let user = localStorage.getItem("display-name");
         let request = new XMLHttpRequest;
 
@@ -250,7 +250,7 @@ document.addEventListener('DOMContentLoaded', function () {
           document.querySelector('#usernames-list').style.display = "block";
 
           //change title name
-          document.title = "Flack | " + channel + "| Members";
+          document.title = "Flack | " + localStorage.getItem("last-channel") + " | Members";
 
           document.querySelector("#messages-section").style.display = "none";
           document.querySelector("#send-message").style.display = "none";
@@ -309,7 +309,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
   document.querySelector("#leave-chatroom-btn").onclick = function (e)
   {
-    console.log(" we are on leave chatroom");
     document.querySelector("#leave-message-warning").style.display = "block";
     e.preventDefault();
 
@@ -318,8 +317,9 @@ document.addEventListener('DOMContentLoaded', function () {
     {
       e.preventDefault();
 
-      let username = localStorage.getItem("display-name");
-      let channel = localStorage.getItem("last-channel");
+      let username = localStorage.getItem("user_id");
+      let channel = localStorage.getItem("last-channel-id");
+      let channel_name = localStorage.getItem("last-channel");
 
       let request = new XMLHttpRequest();
       request.open("GET", "/leave_chatroom/" + username +"/" +channel);
@@ -333,7 +333,7 @@ document.addEventListener('DOMContentLoaded', function () {
         {
           ALL_CHANNEL_LINKS.forEach(function(link){
 
-            if(link.innerHTML == channel)
+            if(link.innerHTML == channel_name)
             {
               link.remove();
               ALL_CHANNEL_LINKS = document.querySelectorAll(".channel-link")

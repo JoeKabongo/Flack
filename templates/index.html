@@ -74,20 +74,6 @@
     </div>
   </script>
 
-  <script id="remove-user-message" type="text/x-handlebars-template">
-    <div style="margin-left:200px; top:1px; z-index:5; position:fixed; width:70vw;">
-      {% raw -%}
-
-         <div class="alert alert-success alert-dismissible fade show" role="alert">
-            {{founder}} removed you from   '{{channel}}' !
-              <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-              </button>
-          </div>
-      {%- endraw %}
-      <br>
-    </div>
-  </script>
 
   <script id="channel-members" type="text/x-handlebars-template">
     <br>
@@ -101,7 +87,7 @@
 
           {{#each members}}
           <div>
-                  <span>{{this}}</span> <button class="btn btn-outline-secondary remove-user-button"  style="" type="submit" > Remove</button>
+                  <span>{{this}}</span>
                   <hr>
           </div>
           {{/each}}
@@ -127,7 +113,7 @@
   </div>
 
   <div id="signup-div" class="main-div">
-    <h2> Create chatrooms.(Mini version of  <a href="https://slack.com/"> slack</a>)</h2> <br><br><br>
+    <h2> Create chatrooms and have quick chats with your group</h2> <br><br><br>
     <div>
     <form action="{{ url_for('signup') }}" method="post" id="signup-form">
       <div class="input-group">

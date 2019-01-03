@@ -32,7 +32,7 @@ def home(user_id):
     """
         When the user goes back to the homapage
     """
-    session["user_id"] = user_id
+    session["user_id"] = int(user_id)
 
     #query all the channels the user is associated to and display it in the navbar
     user_channels =  db.session.query(Username_Chatroom.chatroom).filter_by(username=user_id).all()
@@ -74,6 +74,8 @@ def signup():
         db.session.commit()
         user_id = user.get_id()
 
+        session["user_id"] = user_id
+
         return jsonify({"success":True, "user_id":user_id})
 
 @app.route("/signin", methods=["POST"])
@@ -96,6 +98,7 @@ def signin():
         return jsonify({"success": False, "message":"The password you entered does not match with the username"})
     else:
         user_id =  user.get_id()
+        session["user_id"] = user_id
         return jsonify({"success": True, "user_id":user_id})
 
 
@@ -213,18 +216,43 @@ def usernames_list(channel, username):
     """
         render list of usernames that can be added to the chatroom
     """
-    usernames = Username.query.filter(Username.id != session["user_id"]).order_by(Username.name)
-    username_list=[]
-    for user in usernames:
-        username_list.append(user.name)
-    return jsonify({"usernames":username_list})
+    #extract list of users that are members of this channels
+    members_dict={}
+    members = Username_Chatroom.query.filter_by(chatroom=channel).all()
+    for user in members:
+        user_id = user.username
+        if members_dict.get(str(user_id)) == None:
+            user = (Username.query.get(user_id)).name
+            members_dict[str(user_id)] = user
 
+
+    #extract list of user that are members of other channel but this one
+    non_members  = Username_Chatroom.query.filter(Username_Chatroom.chatroom != channel).all()
+    non_members_dict = {}
+    for element in non_members:
+        user_id = element.username
+        if non_members_dict.get(str(user_id)) == None:
+            user = (Username.query.get(user_id)).name
+            non_members_dict[str(user_id)] = user
+
+    print(f"non members: {non_members_dict}")
+    print(f"members: {members_dict}")
+
+    usernames_list = []
+    copy = non_members_dict.copy()
+    for key in non_members_dict.keys():
+        if members_dict.get(key) != None:
+            copy.pop(key)
+        else:
+            usernames_list.append(non_members_dict[key])
+    usernames_list = sorted(usernames_list)
+    return jsonify({"usernames":usernames_list})
 
 
 @socketio.on("add user")
 def add_user(data):
     """
-       Allow a user of the channel to add new user to their channel
+       Allow a user of the channel to add new user to the channel
     """
 
     #get data needed to add user to a channel
@@ -251,43 +279,36 @@ def members(channel, user):
         return list of all the members in the chatrooms
     """
 
-    copy = channel_contents[channel][0]["members"][:]
-    copy.remove(user)
-    return jsonify({"members":copy})
+    members = []
+    members_query = Username_Chatroom.query.filter_by(chatroom=channel).all()
+    for element in members_query:
+        user_id = element.username
+        if user_id != session["user_id"]:
+            user = (Username.query.get(user_id)).name
+            members.append(user)
+    members = sorted(members)
+    return jsonify({"members":members})
 
-
-@socketio.on("remove user")
-def remove_user(data):
-    """
-       Allow the founder of the channel to remove user from their channel
-    """
-    channel = data["channel"]
-    user = data["user"]
-    founder = data["founder"]
-
-    channel_contents[channel][0]["members"].remove(user)
-    users_toChannels[user].remove(channel)
-
-    socketio.emit('broadcast remove_user', {'founder':founder, 'user': user, 'channel':channel}, broadcast=True)
 
 @app.route("/leave_chatroom/<username>/<channel>")
 def leave_chatroom(username, channel):
     """
         Allow user to leave the chatroom
     """
-    print(channel_contents[channel][0]["members"])
-    try:
-        channel_contents[channel][0]["members"].remove(username)
-        users_toChannels[username].remove(channel)
+    to_delete = Username_Chatroom.query.filter_by(chatroom=channel, username=username).first()
+    db.session.delete(to_delete)
+    db.session.commit()
 
-        #check if there is still members in channel, if no members, delete the chatroom
-        if len(channel_contents[channel][0]["members"]) == 0:
-            channel_contents.pop(channel)
-            channel_names.remove(channel)
 
-        return jsonify({"success": True})
-    except:
-        return jsonify({"success": False})
+    check = Username_Chatroom.query.filter_by(chatroom=channel).all()
+    #check if there is still members in channel, if no members, delete the chatroom
+
+    if len(check)  == 0:
+        delete = Chatroom.query.get(channel)
+        db.session.delete(delete)
+        db.session.commit()
+
+    return jsonify({"success": True})
 
 if __name__ == '__main__':
     app.run()
