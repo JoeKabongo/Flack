@@ -1,6 +1,5 @@
 flask_socketio
 flask
-passlib.hash
 json
 evenlet
 gunicorn
