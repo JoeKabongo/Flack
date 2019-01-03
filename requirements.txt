@@ -1,5 +1,6 @@
 flask_socketio
 flask
+flask_sqlalchemy
 passlib
 gunicorn
 eventlet
