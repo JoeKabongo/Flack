@@ -1,4 +1,5 @@
 flask_socketio
 flask
+passlib
 gunicorn
 eventlet
