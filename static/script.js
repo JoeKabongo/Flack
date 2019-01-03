@@ -19,48 +19,8 @@ document.addEventListener('DOMContentLoaded', function () {
       updatePage(toDisplay);
     }
     else{
+      goHomePage();
 
-      //return the the last channel the user visited
-      if(localStorage.getItem("last-channel") != null)
-      {
-
-        let channel = localStorage.getItem("last-channel")
-        let route = "channel/json/" + channel + "/"+ localStorage.getItem("display-name");
-        channel_page(route, localStorage.getItem("last-channel"), true);
-
-        // Push state to URL. and save it in the history
-        document.title = "Flack | " + localStorage.getItem("last-channel");
-        history.pushState({"title":document.title, "channel":route}, document.title, "/channel/"+channel);
-
-        let allLinks = document.querySelectorAll(".channel-link");
-
-        //highlight urrent channel in different color
-        for(var i = 0; i < allLinks.length; i++)
-        {
-          if(allLinks[i].innerHTML == localStorage.getItem("last-channel"))
-          {
-            update_links(allLinks[i]);
-          }
-        }
-
-      }
-      else{
-
-        let url =  document.URL.split("/");
-
-        if(url[url.length-2] == "create_channel" && url[url.length-1] == localStorage.getItem("display-name"))
-        {
-          let toDisplay = [document.querySelector("#navigation-bar"),document.querySelector("#create-channel-div")];
-          updatePage(toDisplay);
-          document.title = "Flack | Create channel";
-        }
-
-        else
-        {
-          // go to homepage
-          goHomePage();
-        }
-      }
     }
 
 
@@ -85,6 +45,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
           //display home and navigation bar
           localStorage.setItem("display-name", username);
+          localStorage.setItem("user_id", response.user_id)
           goHomePage();
 
         }else{
@@ -124,6 +85,7 @@ document.addEventListener('DOMContentLoaded', function () {
       {
         //display home and navigation bar
         localStorage.setItem("display-name", username);
+        localStorage.setItem("user_id", response.user_id);
         goHomePage();
       }
       else
@@ -206,15 +168,16 @@ document.addEventListener('DOMContentLoaded', function () {
          let currentTime = current_time();
          let date = get_date();
          let username = localStorage.getItem("display-name");
-         let channel =  localStorage.getItem("last-channel");
-         socket.emit('sending message', {"date": date, "channel":channel, "message": message, "current_time":currentTime, "username":username});
+         let username_id =   localStorage.getItem("user_id");
+         let channel =  localStorage.getItem("last-channel-id");
+         socket.emit('sending message', {"date": date, "channel":channel, "message": message, "current_time":currentTime, "username":username, "username_id":username_id});
          return false;
        }
        //reset the input to be empty
        document.querySelector("#message").value = "";
      };
 
-     //allow the creator of the chatrooms to add users, by displaying availabe they can add
+     //allow a user  to add users to chatroom by displaying availabe they can add
      document.querySelector("#addUser-btn").onclick = function(e, save=true)
      {
        e.preventDefault();
@@ -252,7 +215,7 @@ document.addEventListener('DOMContentLoaded', function () {
               parent.remove();
               let userToRemove = button.previousElementSibling.innerHTML;
               e.preventDefault();
-              socket.emit("add user", {"founder":localStorage.getItem("display-name"), "channel":localStorage.getItem("last-channel"), "user":userToRemove})
+              socket.emit("add user", {"adder":localStorage.getItem("username_id"), "adder_name": localStorage.getItem("display-name"), "channel_id": localStorage.getItem("last-channel-id"), "channel_name":localStorage.getItem("last-channel"), "user":userToRemove})
             };
           });
 
@@ -326,7 +289,7 @@ document.addEventListener('DOMContentLoaded', function () {
           localStorage.setItem("last-channel", channel);
 
           ///update the webpage by calling the channel page function
-          let route = "channel/json/" + channel + "/"+ localStorage.getItem("display-name");
+          let route = "channel/json/" + channel;
           channel_page(route, channel);
 
           // Push state to URL. and save it in the history
@@ -423,7 +386,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
       //add the channel to the DOM (navbar) if the name has not been taken
       const post_template = Handlebars.compile(document.querySelector('#add-user-message').innerHTML);
-      const message = post_template({'channel': data.channel, 'founder':data.founder});
+      const message = post_template({'channel': data.channel, 'founder':data.adder});
       document.querySelector('body').innerHTML += message;
       updateAfterAddRemoveUser();
 
@@ -438,8 +401,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
      //display the message only if it is in the channel in which the message was sent
-     if(data.channel == localStorage.getItem("last-channel"))
-     {
+     if(data.channel == localStorage.getItem("last-channel-id"))
+     //{
        if(data.date != null){
          let template = Handlebars.compile(document.querySelector('.date').innerHTML);
          let m  = template({"date": data.date});
@@ -463,7 +426,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
        //reset the input field to empty string
        document.querySelector("#message").value = "";
-     }
+     //}
 
    });
 
@@ -524,7 +487,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
          //get the channel name
          localStorage.setItem("last-channel", channel);
-         let route = "channel/json/" + channel +"/"+localStorage.getItem("display-name");
+         localStorage.setItem("last-channel-id", response.channel_id)
+         let route = "channel/json/" +localStorage.getItem("last-channel");
          channel_page(route, channel, false);
 
          // Push state to URL. and save it in the history
@@ -546,8 +510,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
      // send the name of the channel to the server
      let data = new FormData();
-     data.append("founder", localStorage.getItem("display-name"));
      data.append("channel-name",channel);
+     data.append("user_id", localStorage.getItem("user_id"));
      request.send(data);
 
      return false;
@@ -631,7 +595,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function goHomePage()
   {
     let request = new XMLHttpRequest();
-    request.open('GET', '/home/'+localStorage.getItem("display-name"));
+    request.open('GET', '/home/'+localStorage.getItem("user_id"));
 
     request.onload = function ()
     {
@@ -684,7 +648,7 @@ document.addEventListener('DOMContentLoaded', function () {
         localStorage.setItem("last-channel", channel);
 
         ///update the webpage by calling the channel page function
-        let route = "channel/json/" + channel + "/"+ localStorage.getItem("display-name");
+        let route = "channel/json/" + channel;
         channel_page(route, channel);
 
         // Push state to URL. and save it in the history
@@ -760,7 +724,7 @@ document.addEventListener('DOMContentLoaded', function () {
       let channel = localStorage.getItem("last-channel");
       let displayName = localStorage.getItem("display-name");
 
-      let route = "channel/json/" + channel+ "/"+ displayName;
+      let route = "channel/json/" + localStorage.getItem("last-channel");
       channel_page(route, channel);
 
     }
@@ -768,7 +732,6 @@ document.addEventListener('DOMContentLoaded', function () {
  // retrieve data of a channel from the server and display on the webpage
  function channel_page(route, channel, reload = false)
  {
-
    //open a get request
    let request = new XMLHttpRequest();
    request.open("GET", `/${route}`);
@@ -778,6 +741,7 @@ document.addEventListener('DOMContentLoaded', function () {
        //get the messages of the channel from the server response
        let response = JSON.parse(request.responseText);
        let messages = response.messages;
+       localStorage.setItem("last-channel-id", response.channel_id)
 
        //show the message section of a channel and hide the other part of the website
        updatePage([document.querySelector("#channel-messages"), document.querySelector("#navigation-bar")]);
@@ -973,7 +937,8 @@ function deleteMessage(button)
 
       //open a http http XMLHttpRequest
       let request = new XMLHttpRequest();
-      request.open('GET', "/deleteMessage/" + id + "/" +currentChannel);
+      alert(id)
+      request.open('GET', "/deleteMessage/" + id);
 
       //Callback function for when request completes
       request.onload = function (){

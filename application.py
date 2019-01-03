@@ -1,68 +1,23 @@
 import os
 import sys
 
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session
 from flask_socketio import SocketIO, emit, send
 import json
 from passlib.hash import pbkdf2_sha256
-
-
+from models import *
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+
+app.config["SQLALCHEMY_DATABASE_URI"] = "postgres://ijqbolaknohivt:f8dea6cdb0906300228cd31274d5bfc2b98c5b16fb61fd99e21873acb9b759a8@ec2-54-225-89-156.compute-1.amazonaws.com:5432/d79sv2ea3fj85a"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+db.init_app(app)
+app.config["SECRET_KEY"] = "secret key"
 
 # Configure session to use filesystem
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 
 socketio = SocketIO(app)
-
-message_id = 0
-
-#list of all the users
-usernames = []
-
-#list of all chatrooms
-channel_names = []
-
-#all messags containted in the chatrooms
-channel_contents = {}
-
-#maps users to channels that are members, or channel they can access
-users_toChannels = {}
-
-#map users and their passwords
-users_passwords = {}
-
-def insertIt(theList, item):
-    """
-        insert algorithm that insert
-        insert item in theList in increasing order
-        item should be a string
-    """
-    if len(theList) == 0:
-        theList.append(item)
-    else:
-        min = 0
-        max = len(theList)
-        mid = (min + max)//2
-
-        while min <= max:
-            if len(theList[min:max]) == 1:
-                if theList[mid] > item:
-                    theList.insert(mid, item)
-                else:
-                    theList.insert(mid+1, item)
-                break
-            elif theList[mid].lower() == item:
-                theList.insert(mid, item)
-                break
-            elif theList[mid].lower() > item:
-                max = mid
-                mid = (max+min)//2
-
-            elif theList[mid].lower() < item:
-                min = mid
-                mid = (max+min)//2
 
 @app.route("/")
 def index():
@@ -72,13 +27,24 @@ def index():
     """
     return render_template("index.html")
 
-@app.route("/home/<username>")
-def home(username):
+@app.route("/home/<user_id>")
+def home(user_id):
     """
         When the user goes back to the homapage
     """
-    print("We on the homepage")
-    return jsonify({"channels": users_toChannels[username]})
+    session["user_id"] = user_id
+
+    #query all the channels the user is associated to and display it in the navbar
+    user_channels =  db.session.query(Username_Chatroom.chatroom).filter_by(username=user_id).all()
+    channels = []
+    for i  in range (len(user_channels)):
+        channel = Chatroom.query.get(user_channels[i][0])
+        channels.append(channel)
+    for i in range (len(channels)):
+        channels[i] = channels[i].name
+    channels.sort()
+
+    return jsonify({"channels": channels})
 
 @app.route("/signup", methods=["POST"])
 def signup():
@@ -86,19 +52,13 @@ def signup():
         Allow the user to create an unique display name(aka username)
         Make sure the user picked an unique display name that does not exist yet
     """
-    global  usernames
     username = request.form.get("username")
     password = request.form.get("password")
     confirm_password = request.form.get("confirm_password")
 
-    print("password: ", password)
-    print("confirm_pass: ", confirm_password)
-    print("username : ", username)
+    user = Username.query.filter_by(name=username).first()
 
-
-
-    print("all usernames: ", usernames)
-    if username in usernames:
+    if user:
         return jsonify({"success":False, "message":"This username has already been taken, sorry"})
 
     #if password does not match
@@ -109,37 +69,35 @@ def signup():
         # hash the password
         hash = pbkdf2_sha256.hash(password)
 
-        users_passwords[username] = hash
+        user = Username(name=username, password=hash)
+        db.session.add(user)
+        db.session.commit()
+        user_id = user.get_id()
 
-        insertIt(usernames, username)
-        users_toChannels[username] = []
-        return jsonify({"success":True})
+        return jsonify({"success":True, "user_id":user_id})
 
 @app.route("/signin", methods=["POST"])
 def signin():
     """
         allow the user to sign in
     """
-    global  usernames
     username = request.form.get("username")
     password = request.form.get("password")
 
-    if username not in usernames:
+    user = Username.query.filter_by(name=username).first()
+    print(f"user {user}")
+
+    if user is None:
         return jsonify({"success": False, "message":"The username you entered cannot be found in our records."})
 
-    hash_password = users_passwords[username]
+    hash_password = user.get_password()
+
     if pbkdf2_sha256.verify(password, hash_password) is False:
         return jsonify({"success": False, "message":"The password you entered does not match with the username"})
     else:
-        print("we should be in here")
-        return jsonify({"success": True})
+        user_id =  user.get_id()
+        return jsonify({"success": True, "user_id":user_id})
 
-
-"""@app.route("/signout")
-def signout():
-
-
-    return  """
 
 @app.route("/create_channel_post", methods=["POST"])
 def create_channel():
@@ -148,39 +106,54 @@ def create_channel():
         name has not been taken yet"""
 
     channel = request.form.get("channel-name").lower()
-    founder = request.form.get("founder")
-    if channel in channel_names:
+    user_id = request.form.get("user_id")
+    chatroom = Chatroom.query.filter_by(name=channel).first()
+    if chatroom:
         return jsonify({"failure":True})
 
     else:
-        insertIt(channel_names, channel)
-        channel_contents[channel] = [{"next_messageId": 0, "members":[founder], "founder":founder}]
-        insertIt(users_toChannels[founder], channel)
-        print("this is channel content", channel_contents[channel])
-        return jsonify({"failure":False})
+        #add chatroom into th database
+        chatroom = Chatroom(name=channel)
+        db.session.add(chatroom)
+        db.session.commit()
+
+        chatroom_id = chatroom.get_id()
+
+        print(f"user_id {user_id}, chat id {chatroom_id}")
+
+        user_channel = Username_Chatroom(username=user_id, chatroom=chatroom_id)
+        db.session.add(user_channel)
+        db.session.commit()
+        return jsonify({"failure":False, "channel_id": chatroom_id})
 
 @app.route("/create_channel/<username>")
 def go_create_channel(username):
-    return render_template("index.html", channels=users_toChannels[username])
+    return render_template("index.html")
 
-@app.route("/channel/json/<channel_name>/<username>")
-def channel_page(channel_name, username):
+@app.route("/channel/json/<channel_name>")
+def channel_page(channel_name):
     """
-        Display the channel content(messages)
+        Display the channel content(messages), when user click on channel link
     """
-    if channel_name in  users_toChannels[username]:
-        return jsonify({"messages":channel_contents[channel_name][1:],"channels": users_toChannels[username]})
 
-    else:
-        return redirect(url_for("home", username=username))
+    chatroom = Chatroom.query.filter_by(name=channel_name).first()
+    chatroom_id = chatroom.id
+    relation = Chatroom_messages.query.filter_by(chatroom=chatroom_id).all()
 
+    messages = []
+    for element in relation:
+        message = Message.query.get(element.message)
+        username = Username.query.get(message.sender).name
+        messages.append({"username": username, "time":message.time, "date":message.date, "content":message.message, "id":message.id})
+
+    return jsonify({"messages":messages, "channel_id":chatroom_id})
 
 @app.route("/channel/<channel_name>")
 def channel(channel_name):
     """
         Display the channel content. This is when the user refresh the webpage
     """
-    return render_template("index.html", messages=channel_contents[channel_name][1:], channels=channel_names)
+    return render_template("index.html")
 
 
 @socketio.on("sending message")
@@ -189,50 +162,49 @@ def send_message(data):
         allow the user to send a message, and other user to receive inside a channel
         add message to the channel
     """
-    global message_id
 
-    print("ibside the socket blablabla")
     message = data["message"]
+    username_id = data["username_id"]
     username = data["username"]
     current_time = data["current_time"]
     channel = data["channel"]
     date = data["date"]
 
-    #check if it is the first message of the day or not
-    if len(channel_contents[channel]) == 1:
-        emit("broadcast message", {"date":date, "message":message, "username":username, "current_time":current_time, "channel":channel, "id":message_id}, broadcast=True)
+    #save message in database
+    msg = Message(message=message, sender=username_id, date=date, time=current_time, chatroom=channel)
+    db.session.add(msg)
+    db.session.commit()
+
+    msg_relation = Chatroom_messages.query.filter_by(chatroom=channel).all()
+
+    #if it is the first message in the channel, immediatly dispaly it with today's date
+    if len(msg_relation) == 0:
+        emit("broadcast message", {"date":date, "message":message, "username":username, "current_time":current_time, "channel":channel, "id":msg.id}, broadcast=True)
+
     else:
-        if channel_contents[channel][-1]["date"] != date:
-            emit("broadcast message", {"date":date, "message":message, "username":username, "current_time":current_time, "channel":channel, "id":message_id}, broadcast=True)
+        last_msg_date = Message.query.get(msg_relation[-1].message).date
+
+        if date != last_msg_date:
+            emit("broadcast message", {"date":date, "message":message, "username":username, "current_time":current_time, "channel":channel, "id":msg.id}, broadcast=True)
+
         else:
-            emit("broadcast message", {"message":message, "username":username, "current_time":current_time, "channel":channel, "id":message_id}, broadcast=True)
-    #save message
-    channel_contents[channel].append({"date":date, "time":current_time, "username":username, "content":message, "id":message_id})
+             emit("broadcast message", {"message":message, "username":username, "current_time":current_time, "channel":channel, "id":msg.id}, broadcast=True)
 
-    #increment the message_id variable
-    message_id += 1
 
-@app.route("/deleteMessage/<id>/<channel>")
-def delete_message(id, channel):
+    msg_chatroom = Chatroom_messages(chatroom=channel, message=msg.id)
+    db.session.add(msg_chatroom)
+    db.session.commit()
+
+@app.route("/deleteMessage/<id>")
+def delete_message(id):
     """
         delete a message
     """
     id=int(id)
-    messageDate =""
-    print(channel_contents[channel][1:])
+    msg = Message.query.get(id)
+    db.session.delete(msg)
+    db.session.commit()
 
-    #remove the message was the channel
-    for message in channel_contents[channel][1:]:
-        if message["id"] == id:
-            messageDate = message["date"]
-            channel_contents[channel].remove(message)
-
-    #check if this was the only message of the day
-    if len(channel_contents[channel]) == 1:
-        return jsonify({"removedate": True})
-
-    if channel_contents[channel][-1]["date"] != messageDate:
-        return jsonify({"removedate": True})
     return jsonify({})
 
 
@@ -241,39 +213,36 @@ def usernames_list(channel, username):
     """
         render list of usernames that can be added to the chatroom
     """
-    print("channels " , channel_contents[channel])
-    copy = usernames[:]
-    result = []
-
-    #lis of all members
-    members = channel_contents[channel][0]["members"]
-    length = len(copy)
-    print("copy: ", copy)
-    print("members: ", members)
-    for i in range(0, length):
-        if copy[i] not in members:
-            result.append(copy[i])
-    print("result: ", result)
-    print("channels " , channel_contents[channel])
-
-    return jsonify({"usernames":result})
+    usernames = Username.query.filter(Username.id != session["user_id"]).order_by(Username.name)
+    username_list=[]
+    for user in usernames:
+        username_list.append(user.name)
+    return jsonify({"usernames":username_list})
 
 
 
 @socketio.on("add user")
 def add_user(data):
     """
-       Allow the founder of the channel to add new user to their channel
+       Allow a user of the channel to add new user to their channel
     """
-    channel = data["channel"]
+
+    #get data needed to add user to a channel
+    channel_id = data["channel_id"]
+    channel_name = data["channel_name"]
     user = data["user"]
-    founder = data["founder"]
+    adder_id = data["adder"]
+    adder_name = data["adder_name"]
 
 
-    insertIt(channel_contents[channel][0]["members"], user)
-    insertIt(users_toChannels[user], channel)
+    #link user to the chatroom database
+    user_id = (Username.query.filter_by(name=user).first()).id
+    link = Username_Chatroom(username=user_id, chatroom=channel_id)
+    db.session.add(link)
+    db.session.commit()
 
-    socketio.emit('broadcast added_user', {'founder':founder, 'user': user, 'channel':channel}, broadcast=True)
+    #emit the message to the user if they are online
+    socketio.emit('broadcast added_user', {'adder':adder_name, 'user': user, 'channel':channel_name}, broadcast=True)
 
 
 @app.route("/<channel>/members/<user>")
@@ -281,7 +250,6 @@ def members(channel, user):
     """
         return list of all the members in the chatrooms
     """
-    print("we supposed to be in here")
 
     copy = channel_contents[channel][0]["members"][:]
     copy.remove(user)
