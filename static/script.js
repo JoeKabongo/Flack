@@ -113,6 +113,10 @@ document.addEventListener('DOMContentLoaded', function () {
     localStorage.setItem("recovery-name", localStorage.getItem("display-name"));
 
     localStorage.removeItem("display-name");
+    localStorage.removeItem("user_id");
+    localStorage.removeItem("last-channel");
+    localStorage.removeItem("last-channel-id");
+
     //display sign up form
     let toDisplay = [document.querySelector("#signup-div")]
     updatePage(toDisplay);
