@@ -1,5 +1,4 @@
 flask_socketio
 flask
-json
 evenlet
 gunicorn
