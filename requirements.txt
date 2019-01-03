@@ -4,3 +4,4 @@ flask_sqlalchemy
 passlib
 gunicorn
 eventlet
+psycopg2
