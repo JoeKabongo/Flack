@@ -1,5 +1,5 @@
 flask_socketio
 flask
 gunicorn
-passlib-1.7.1
+passlib.hash
 eventlet
