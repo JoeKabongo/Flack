@@ -226,25 +226,12 @@ def usernames_list(channel, username):
             members_dict[str(user_id)] = user
 
 
-    #extract list of user that are members of other channel but this one
-    non_members  = Username_Chatroom.query.filter(Username_Chatroom.chatroom != channel).all()
-    non_members_dict = {}
-    for element in non_members:
-        user_id = element.username
-        if non_members_dict.get(str(user_id)) == None:
-            user = (Username.query.get(user_id)).name
-            non_members_dict[str(user_id)] = user
-
-    print(f"non members: {non_members_dict}")
-    print(f"members: {members_dict}")
-
+    #extract all users and remove those that are in the members dictionary
+    all_members  = Username.query.all()
     usernames_list = []
-    copy = non_members_dict.copy()
-    for key in non_members_dict.keys():
-        if members_dict.get(key) != None:
-            copy.pop(key)
-        else:
-            usernames_list.append(non_members_dict[key])
+    for member in all_members:
+        if members_dict.get(str(member.id)) == None:
+            usernames_list.append(member.name)
     usernames_list = sorted(usernames_list)
     return jsonify({"usernames":usernames_list})
 
